@@ -176,6 +176,33 @@ function command(r, pid, msg) {
     u.tx = Math.max(0, Math.min(W - 1, Number(msg.x) || 0));
     u.ty = Math.max(0, Math.min(H - 1, Number(msg.y) || 0));
   }
+  if (msg.action === "move_all") {
+    const tx = Math.max(0, Math.min(W - 1, Number(msg.x) || 0));
+    const ty = Math.max(0, Math.min(H - 1, Number(msg.y) || 0));
+    r.units.filter(u => u.owner === pid).forEach(u => {
+      u.tx = tx;
+      u.ty = ty;
+    });
+  }
+  if (msg.action === "attack_core") {
+    const enemy = r.players[1 - pid];
+    r.units.filter(u => u.owner === pid).forEach(u => {
+      u.tx = enemy.x;
+      u.ty = enemy.y;
+    });
+    log(r, `${r.players[pid].name} launched an all-out assault on the enemy core!`);
+  }
+  if (msg.action === "capture_relay") {
+    const relay = r.nodes[Number(msg.relayId)];
+    if (relay) {
+      const units = r.units.filter(u => u.owner === pid);
+      units.forEach(u => {
+        u.tx = relay.x;
+        u.ty = relay.y;
+      });
+      log(r, `${r.players[pid].name} directed forces toward Relay #${relay.id + 1}.`);
+    }
+  }
   if (msg.action === "retreat") {
     r.units
       .filter(u => u.owner === pid)
@@ -183,7 +210,7 @@ function command(r, pid, msg) {
         u.tx = r.players[pid].x;
         u.ty = r.players[pid].y;
       });
-    log(r, `${r.players[pid].name} recalled all units.`);
+    log(r, `${r.players[pid].name} recalled all units to base.`);
   }
 }
 
@@ -299,8 +326,8 @@ function tickRoom(r) {
 
     // Check attack on opposing Core
     const enemyPlayer = r.players[1 - u.owner];
-    if (dist(u, enemyPlayer) < 1.35 && u.cooldown === 0) {
-      const dmg = u.type === "tank" ? 8 : 3;
+    if (dist(u, enemyPlayer) < 2.2 && u.cooldown === 0) {
+      const dmg = u.type === "tank" ? 10 : 4;
       enemyPlayer.core -= dmg;
       r.stats.damageDealt[u.owner] += dmg;
       u.cooldown = s.rate;
@@ -309,6 +336,7 @@ function tickRoom(r) {
         from: { x: u.x, y: u.y },
         to: { x: enemyPlayer.x, y: enemyPlayer.y },
         owner: u.owner,
+        damage: dmg,
         targetType: "core"
       });
 

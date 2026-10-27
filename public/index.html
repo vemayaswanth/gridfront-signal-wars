@@ -18,7 +18,7 @@
   --muted: #8ba2c2;
   --text: #eef5ff;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: text; -webkit-user-select: text; }
 body {
   background: radial-gradient(ellipse at 50% -10%, #172d4c 0%, #070d18 60%);
   color: var(--text);
@@ -27,7 +27,7 @@ body {
   display: flex;
   flex-direction: column;
 }
-button, input { font: inherit; }
+button, input { font: inherit; user-select: none; }
 button {
   cursor: pointer;
   border: 1px solid #334e70;
@@ -62,6 +62,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shado
   box-shadow: 0 6px 22px rgba(82, 215, 255, 0.4);
 }
 .secondary { background: #15243b; border-color: #2e4766; color: #bed2ea; }
+.danger { background: #3b1422; border-color: #662e3d; color: #ff9cb1; }
+.danger:hover:not(:disabled) { border-color: var(--red); background: #4a1a2c; }
 .full { width: 100%; }
 .hidden { display: none !important; }
 
@@ -157,7 +159,7 @@ main {
 /* Layout Grid */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 16px;
 }
 
@@ -193,7 +195,7 @@ canvas {
   width: 100%;
   height: auto;
   aspect-ratio: 3/2;
-  cursor: crosshair;
+  cursor: default;
 }
 
 .bottom-bar {
@@ -311,6 +313,29 @@ canvas {
 .enemy-fill {
   background: var(--red) !important;
   box-shadow: 0 0 8px rgba(255, 82, 119, 0.5);
+}
+
+/* Tactical Command Buttons */
+.tactical-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tactic-btn {
+  padding: 8px 10px;
+  font-size: 11px;
+  background: #101c2e;
+  border: 1px solid #273d58;
+  border-radius: 8px;
+  color: #c9dcfa;
+  font-weight: 600;
+  text-align: center;
+}
+.tactic-btn:hover:not(:disabled) {
+  border-color: var(--cyan);
+  background: #172a44;
+  color: #fff;
 }
 
 /* Unit Production */
@@ -433,6 +458,11 @@ canvas {
               <button class="secondary full" id="customRoomBtn">🔗 CREATE / JOIN ROOM CODE</button>
             </div>
             
+            <div id="quickMatchFallback" class="hidden" style="margin-top:14px;padding:12px;background:#0d1828;border:1px solid #233c5c;border-radius:10px;text-align:center;">
+              <div style="font-size:12px;color:#bed3ed;margin-bottom:8px;">Waiting for an opponent in queue...</div>
+              <button class="primary full" id="fallbackAiBtn" style="font-size:12px;padding:8px;">⚡ Play Against AI Opponent Now</button>
+            </div>
+
             <p style="font-size:11px;color:#7e94b2;margin:14px 0 0;text-align:center;">
               Handshake AI Skills Studio × OpenAI Challenge Build
             </p>
@@ -484,8 +514,8 @@ canvas {
               <div>⚡ <b>Energy & Relays:</b> Relays in the center generate +6 energy every cycle when your units stand nearby to capture them.</div>
               <div>➤ <b>Pulse Scout (35 Energy):</b> High speed and fast capture capability; great for rapid expansion and harassment.</div>
               <div>⬡ <b>Siege Tank (70 Energy):</b> Armored behemoth with 130 HP and heavy cannon damage; pushes enemy defenses.</div>
-              <div>🎯 <b>Unit Controls:</b> Click your unit to select it, then click any battlefield tile to issue movement orders. Units auto-fire at enemies in range!</div>
-              <div>💥 <b>Win Condition:</b> March your army into the enemy core sector to destroy their base integrity (300 HP).</div>
+              <div>🎯 <b>Direct Unit Orders:</b> Click any Relay or the Enemy Base directly on the map, OR click a unit and then click any tile to move. You can also use the 1-click order buttons in the sidebar!</div>
+              <div>💥 <b>Core Destruction:</b> Attack the enemy core by clicking it or pressing "⚔️ Attack Enemy Core". Destroy their 300 HP base to win!</div>
             </div>
 
             <div style="margin-top:18px;">
@@ -496,7 +526,7 @@ canvas {
       </div>
 
       <div class="bottom-bar">
-        <span>LEFT-CLICK UNIT TO SELECT · CLICK TILE TO DISPATCH</span>
+        <span>CLICK ANY RELAY OR BASE DIRECTLY · OR SELECT UNIT &amp; CLICK TILE</span>
         <span><span class="key-badge">SCOUT</span> FAST EXPANSION · <span class="key-badge">TANK</span> SIEGE CORE</span>
       </div>
     </section>
@@ -521,17 +551,35 @@ canvas {
           </div>
         </div>
 
+        <!-- HP Bars with consistent labels & exact HP text -->
         <div class="hp-row">
           <span>YOUR CORE INTEGRITY</span>
-          <b id="coreText" style="color:var(--cyan);">100%</b>
+          <b id="coreText" style="color:var(--cyan);">100% (300/300)</b>
         </div>
         <div class="progress-track"><span id="coreBar" class="progress-fill"></span></div>
 
         <div class="hp-row" style="margin-top:14px;">
           <span id="enemyCoreLabel">ENEMY CORE INTEGRITY</span>
-          <b id="enemyCoreText" style="color:var(--red);">100%</b>
+          <b id="enemyCoreText" style="color:var(--red);">100% (300/300)</b>
         </div>
         <div class="progress-track"><span id="enemyCoreBar" class="progress-fill enemy-fill"></span></div>
+      </div>
+
+      <!-- Tactical Quick Orders (Direct 1-Click Controls) -->
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>TACTICAL DISPATCH ORDERS</span>
+          <span>QUICK COMMAND</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+          Direct all your units instantly to a strategic waypoint:
+        </div>
+        <div class="tactical-grid">
+          <button class="tactic-btn" id="orderRelay1" disabled>🎯 Relay 1 (North)</button>
+          <button class="tactic-btn" id="orderRelay2" disabled>🎯 Relay 2 (Center)</button>
+          <button class="tactic-btn" id="orderRelay3" disabled>🎯 Relay 3 (South)</button>
+          <button class="tactic-btn danger" id="orderAttackCore" disabled>⚔️ Attack Core</button>
+        </div>
       </div>
 
       <!-- Unit Production Panel -->
@@ -560,7 +608,7 @@ canvas {
         </button>
 
         <button class="secondary full" id="retreatBtn" style="margin-top:10px;" disabled>
-          ↶ Recall All Units to Base
+          🛡️ Recall All Units to Base
         </button>
       </div>
 
@@ -660,6 +708,22 @@ class SoundController {
       osc.stop(t + 0.26);
     } catch(e){}
   }
+  playOrder() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+      const t = this.ctx.currentTime;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.setValueAtTime(680, t + 0.06);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.15);
+    } catch(e){}
+  }
   playVictory() {
     if (!this.enabled || !this.ctx) return;
     try {
@@ -692,13 +756,15 @@ const W = 18, H = 12;
 const COLORS = ['#52d7ff', '#ff5277'];
 
 // Particle & visual effect system
-let attackBeams = []; // { fromX, fromY, toX, toY, color, life, maxLife }
-let particles = [];   // { x, y, vx, vy, color, life, maxLife, size }
+let attackBeams = [];     // { fromX, fromY, toX, toY, color, life, maxLife }
+let particles = [];       // { x, y, vx, vy, color, life, maxLife, size }
+let floatingTexts = [];   // { x, y, text, color, life, maxLife }
+let clickPings = [];      // { x, y, r, color, life, maxLife }
 
 function addExplosion(x, y, color) {
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 18; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 0.5 + Math.random() * 2.5;
+    const speed = 0.5 + Math.random() * 2.8;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
@@ -711,18 +777,26 @@ function addExplosion(x, y, color) {
   }
 }
 
-// --- Audio Button Toggle ---
+function addFloatingText(x, y, text, color = '#ff6b8b') {
+  floatingTexts.push({ x, y, text, color, life: 30, maxLife: 30 });
+}
+
+function addClickPing(x, y, color = '#52d7ff') {
+  clickPings.push({ x, y, r: 4, color, life: 18, maxLife: 18 });
+}
+
+// Audio Button Toggle
 $('audioToggle').onclick = () => {
   sfx.init();
   sfx.enabled = !sfx.enabled;
   $('audioToggle').textContent = sfx.enabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
 };
 
-// --- Tactical Rules Modal ---
+// Tactical Rules Modal
 $('howToPlayBtn').onclick = () => $('howToOverlay').classList.remove('hidden');
 $('closeHowToBtn').onclick = () => $('howToOverlay').classList.add('hidden');
 
-// --- WebSocket Connection ---
+// WebSocket Connection
 function connect(mode = 'quick', roomCode = null) {
   sfx.init();
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -733,6 +807,12 @@ function connect(mode = 'quick', roomCode = null) {
     $('statusDot').classList.add('live');
     const name = $('nameInput').value.trim() || 'Commander';
     ws.send(JSON.stringify({ type: 'join', name, mode, roomCode }));
+
+    if (mode === 'quick') {
+      setTimeout(() => {
+        if (!state) $('quickMatchFallback').classList.remove('hidden');
+      }, 3500);
+    }
   };
 
   ws.onmessage = e => {
@@ -742,6 +822,7 @@ function connect(mode = 'quick', roomCode = null) {
     if (msg.type === 'waiting') {
       $('battleStatus').textContent = msg.message;
       $('quickMatchBtn').textContent = 'SEARCHING FOR SATELLITE UPLINK...';
+      $('quickMatchFallback').classList.remove('hidden');
     }
 
     if (msg.type === 'joined') {
@@ -749,7 +830,8 @@ function connect(mode = 'quick', roomCode = null) {
       $('joinOverlay').classList.add('hidden');
       $('customOverlay').classList.add('hidden');
       $('roomLabel').textContent = msg.roomId;
-      $('playerTag').textContent = `P${pid + 1} // ${$('nameInput').value.trim() || 'COMMANDER'}`;
+      const myName = $('nameInput').value.trim() || 'COMMANDER';
+      $('playerTag').textContent = `P${pid + 1} // ${myName.toUpperCase()}`;
       $('battleStatus').textContent = msg.isAi ? 'Simulated Combat vs AI' : 'Live Match Active';
 
       // Setup room copy link
@@ -804,6 +886,10 @@ window.addEventListener('DOMContentLoaded', () => {
 // UI Mode Buttons
 $('quickMatchBtn').onclick = () => connect('quick');
 $('soloAiBtn').onclick = () => connect('ai');
+$('fallbackAiBtn').onclick = () => {
+  if (ws) ws.close();
+  connect('ai');
+};
 $('customRoomBtn').onclick = () => {
   $('joinOverlay').classList.add('hidden');
   $('customOverlay').classList.remove('hidden');
@@ -817,7 +903,7 @@ $('joinRoomBtn').onclick = () => {
   if (code) connect('custom', code);
 };
 
-// Controls
+// Unit Production Controls
 $('scoutBtn').onclick = () => {
   sfx.playDeploy();
   sendAction({ action: 'build', unit: 'scout' });
@@ -826,7 +912,28 @@ $('tankBtn').onclick = () => {
   sfx.playDeploy();
   sendAction({ action: 'build', unit: 'tank' });
 };
-$('retreatBtn').onclick = () => sendAction({ action: 'retreat' });
+$('retreatBtn').onclick = () => {
+  sfx.playOrder();
+  sendAction({ action: 'retreat' });
+};
+
+// Tactical 1-Click Orders
+$('orderRelay1').onclick = () => {
+  sfx.playOrder();
+  sendAction({ action: 'capture_relay', relayId: 0 });
+};
+$('orderRelay2').onclick = () => {
+  sfx.playOrder();
+  sendAction({ action: 'capture_relay', relayId: 1 });
+};
+$('orderRelay3').onclick = () => {
+  sfx.playOrder();
+  sendAction({ action: 'capture_relay', relayId: 2 });
+};
+$('orderAttackCore').onclick = () => {
+  sfx.playOrder();
+  sendAction({ action: 'attack_core' });
+};
 
 function processState(newState) {
   // Check for events in tick
@@ -844,6 +951,9 @@ function processState(newState) {
           maxLife: 8
         });
         sfx.playLaser();
+        if (ev.damage) {
+          addFloatingText((ev.to.x + 0.5) * cw, (ev.to.y + 0.5) * ch - 12, `-${ev.damage}`);
+        }
       }
       if (ev.type === 'destroy') {
         addExplosion((ev.x + 0.5) * cw, (ev.y + 0.5) * ch, '#ff7070');
@@ -866,19 +976,31 @@ function renderUI() {
   const enemy = state.players[1 - pid];
 
   $('energy').textContent = Math.floor(me.energy);
-  $('unitCount').textContent = state.units.filter(u => u.owner === pid).length;
+  const myUnits = state.units.filter(u => u.owner === pid);
+  $('unitCount').textContent = myUnits.length;
 
-  $('coreText').textContent = Math.round(me.core / 3) + '%';
+  const myCoreVal = Math.max(0, Math.round(me.core));
+  const enemyCoreVal = Math.max(0, Math.round(enemy.core));
+
+  // Consistent copyable labels & exact HP text
+  $('coreText').textContent = `${Math.round(myCoreVal / 3)}% (${myCoreVal}/300)`;
   $('coreBar').style.width = Math.max(0, me.core / 3) + '%';
 
-  $('enemyCoreLabel').textContent = `${enemy.name.toUpperCase()} CORE`;
-  $('enemyCoreText').textContent = Math.round(enemy.core / 3) + '%';
+  $('enemyCoreLabel').textContent = `${enemy.name.toUpperCase()} CORE INTEGRITY`;
+  $('enemyCoreText').textContent = `${Math.round(enemyCoreVal / 3)}% (${enemyCoreVal}/300)`;
   $('enemyCoreBar').style.width = Math.max(0, enemy.core / 3) + '%';
 
   const matchEnded = state.winner !== null;
   $('scoutBtn').disabled = me.energy < 35 || matchEnded;
   $('tankBtn').disabled = me.energy < 70 || matchEnded;
-  $('retreatBtn').disabled = matchEnded || !state.units.some(u => u.owner === pid);
+  $('retreatBtn').disabled = matchEnded || myUnits.length === 0;
+
+  // Tactical Order Buttons enabled when units are fielded
+  const hasUnits = myUnits.length > 0 && !matchEnded;
+  $('orderRelay1').disabled = !hasUnits;
+  $('orderRelay2').disabled = !hasUnits;
+  $('orderRelay3').disabled = !hasUnits;
+  $('orderAttackCore').disabled = !hasUnits;
 
   $('productionState').textContent = matchEnded ? 'ENDED' : 'ACTIVE';
 
@@ -894,8 +1016,8 @@ function renderUI() {
     $('endTitle').textContent = isWin ? 'Victory, Commander!' : 'Defeat — Core Neutralized';
     $('endTitle').style.color = isWin ? 'var(--cyan)' : 'var(--red)';
     $('endText').textContent = isWin
-      ? 'Tactical superiority achieved. You have captured the sector.'
-      : 'Your defenses were overrun by enemy forces. Review combat stats below.';
+      ? 'Tactical superiority achieved. You have captured the sector and broken the enemy core!'
+      : 'Your core defenses were breached by opposing forces. Review combat stats below.';
 
     if (state.stats) {
       $('statBuilt').textContent = state.stats.unitsBuilt[pid] || 0;
@@ -910,7 +1032,7 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// --- Canvas Render Loop ---
+// Canvas Render Loop
 function draw() {
   const cw = canvas.width / W;
   const ch = canvas.height / H;
@@ -946,14 +1068,14 @@ function draw() {
     return;
   }
 
-  // Signal Relays with Pulsing Waves
+  // Signal Relays with Pulsing Waves & Click Targets
   for (const n of state.nodes) {
     const rx = (n.x + 0.5) * cw;
     const ry = (n.y + 0.5) * ch;
     const col = n.owner < 0 ? '#d2b56f' : COLORS[n.owner];
 
     // Pulsing signal ring
-    const pulseRadius = Math.min(cw, ch) * (0.28 + 0.05 * Math.sin(state.tick * 0.2 + n.id));
+    const pulseRadius = Math.min(cw, ch) * (0.32 + 0.05 * Math.sin(state.tick * 0.2 + n.id));
     ctx.beginPath();
     ctx.arc(rx, ry, pulseRadius, 0, Math.PI * 2);
     ctx.fillStyle = col + '18';
@@ -966,18 +1088,18 @@ function draw() {
 
     // Central Relay Core
     ctx.beginPath();
-    ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+    ctx.arc(rx, ry, 7, 0, Math.PI * 2);
     ctx.fillStyle = col;
     ctx.fill();
 
     ctx.fillStyle = '#b7c9dc';
-    ctx.font = 'bold 9px system-ui';
+    ctx.font = 'bold 10px system-ui';
     ctx.textAlign = 'center';
-    const label = n.owner < 0 ? `RELAY #${n.id + 1}` : `RELAY #${n.id + 1} [P${n.owner + 1}]`;
+    const label = n.owner < 0 ? `RELAY #${n.id + 1} (CLICK)` : `RELAY #${n.id + 1} [P${n.owner + 1}]`;
     ctx.fillText(label, rx, ry + 24);
   }
 
-  // Player Base Cores
+  // Player Base Cores (with interactive targets & in-game HP bars)
   state.players.forEach((p, i) => {
     const bx = (p.x + 0.5) * cw;
     const by = (p.y + 0.5) * ch;
@@ -992,21 +1114,36 @@ function draw() {
 
     // Hexagonal Core
     ctx.beginPath();
-    ctx.moveTo(bx, by - 24);
-    ctx.lineTo(bx + 22, by - 12);
-    ctx.lineTo(bx + 22, by + 12);
-    ctx.lineTo(bx, by + 24);
-    ctx.lineTo(bx - 22, by + 12);
-    ctx.lineTo(bx - 22, by - 12);
+    ctx.moveTo(bx, by - 26);
+    ctx.lineTo(bx + 24, by - 13);
+    ctx.lineTo(bx + 24, by + 13);
+    ctx.lineTo(bx, by + 26);
+    ctx.lineTo(bx - 24, by + 13);
+    ctx.lineTo(bx - 24, by - 13);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.restore();
 
+    // In-game Core HP Bar
+    const hpW = 60, hpH = 6;
+    ctx.fillStyle = '#1c293d';
+    ctx.fillRect(bx - hpW / 2, by - 36, hpW, hpH);
+    ctx.fillStyle = col;
+    ctx.fillRect(bx - hpW / 2, by - 36, hpW * Math.max(0, p.core / 300), hpH);
+    ctx.strokeStyle = '#2d4566';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - hpW / 2, by - 36, hpW, hpH);
+
+    // Core Label & Numbers
     ctx.fillStyle = col;
     ctx.font = 'bold 10px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(i === pid ? 'YOUR CORE' : `${p.name.toUpperCase()}`, bx, by + 40);
+    const tag = i === pid ? 'YOUR CORE' : `${p.name.toUpperCase()} (ATTACK)`;
+    ctx.fillText(tag, bx, by + 42);
+    ctx.fillStyle = '#bed2ea';
+    ctx.font = '9px system-ui';
+    ctx.fillText(`${Math.round(p.core)} / 300 HP`, bx, by - 42);
   });
 
   // Units
@@ -1018,10 +1155,10 @@ function draw() {
     // Selected Ring
     if (u.owner === pid && selected === u.id) {
       ctx.beginPath();
-      ctx.arc(ux, uy, 20, 0, Math.PI * 2);
+      ctx.arc(ux, uy, 22, 0, Math.PI * 2);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 3]);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -1030,7 +1167,7 @@ function draw() {
     ctx.beginPath();
     ctx.moveTo(ux, uy);
     ctx.lineTo((u.tx + 0.5) * cw, (u.ty + 0.5) * ch);
-    ctx.strokeStyle = col + '45';
+    ctx.strokeStyle = col + '55';
     ctx.setLineDash([3, 5]);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -1045,16 +1182,16 @@ function draw() {
 
     if (u.type === 'tank') {
       ctx.beginPath();
-      ctx.rect(ux - 10, uy - 10, 20, 20);
+      ctx.rect(ux - 11, uy - 11, 22, 22);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = col;
       ctx.fillRect(ux - 5, uy - 5, 10, 10);
     } else {
       ctx.beginPath();
-      ctx.moveTo(ux, uy - 12);
-      ctx.lineTo(ux + 10, uy + 8);
-      ctx.lineTo(ux - 10, uy + 8);
+      ctx.moveTo(ux, uy - 13);
+      ctx.lineTo(ux + 11, uy + 9);
+      ctx.lineTo(ux - 11, uy + 9);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -1063,18 +1200,18 @@ function draw() {
 
     // Health Bar
     ctx.fillStyle = '#1c293d';
-    ctx.fillRect(ux - 14, uy - 18, 28, 4);
+    ctx.fillRect(ux - 15, uy - 20, 30, 4);
     ctx.fillStyle = col;
-    ctx.fillRect(ux - 14, uy - 18, 28 * Math.max(0, u.hp / u.maxHp), 4);
+    ctx.fillRect(ux - 15, uy - 20, 30 * Math.max(0, u.hp / u.maxHp), 4);
   });
 
   // Render Combat Laser Beams
   attackBeams = attackBeams.filter(b => {
     ctx.save();
     ctx.strokeStyle = b.color;
-    ctx.lineWidth = (b.life / b.maxLife) * 3;
+    ctx.lineWidth = (b.life / b.maxLife) * 3.5;
     ctx.shadowColor = b.color;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.moveTo(b.fromX, b.fromY);
     ctx.lineTo(b.toX, b.toY);
@@ -1082,6 +1219,33 @@ function draw() {
     ctx.restore();
     b.life--;
     return b.life > 0;
+  });
+
+  // Render Floating Damage Numbers
+  floatingTexts = floatingTexts.filter(t => {
+    ctx.save();
+    ctx.fillStyle = t.color;
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = t.life / t.maxLife;
+    ctx.fillText(t.text, t.x, t.y - (t.maxLife - t.life) * 0.8);
+    ctx.restore();
+    t.life--;
+    return t.life > 0;
+  });
+
+  // Render Click Pings
+  clickPings = clickPings.filter(p => {
+    ctx.save();
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r + (p.maxLife - p.life) * 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    p.life--;
+    return p.life > 0;
   });
 
   // Render Particle Explosions
@@ -1108,7 +1272,7 @@ function draw() {
   ctx.fillText(`TACTICAL CYCLE: ${cycle}  |  RELAYS HELD: ${ownedNodes}/3`, 14, 20);
 }
 
-// Unit Selection & Movement Controls
+// Unit Selection & Direct Clicking Controls
 canvas.addEventListener('click', e => {
   if (!state || pid === null) return;
   const rect = canvas.getBoundingClientRect();
@@ -1117,26 +1281,73 @@ canvas.addEventListener('click', e => {
   const gx = Math.floor(clickX / cellW);
   const gy = Math.floor(clickY / cellH);
 
-  // Check if clicked own unit
-  const hit = state.units.find(u => u.owner === pid && Math.hypot((u.x + 0.5) * cellW - clickX, (u.y + 0.5) * cellH - clickY) < 22);
+  addClickPing(clickX, clickY);
+
+  // 1. Check if clicked a Relay directly (Generous 36px radius)
+  const clickedRelay = state.nodes.find(n => {
+    const rx = (n.x + 0.5) * cellW;
+    const ry = (n.y + 0.5) * cellH;
+    return Math.hypot(rx - clickX, ry - clickY) < 36;
+  });
+
+  if (clickedRelay) {
+    sfx.playOrder();
+    if (selected !== null) {
+      sendAction({ action: 'move', unitId: selected, x: clickedRelay.x, y: clickedRelay.y });
+      selected = null;
+    } else {
+      sendAction({ action: 'capture_relay', relayId: clickedRelay.id });
+    }
+    draw();
+    return;
+  }
+
+  // 2. Check if clicked Enemy Core directly (Generous 45px radius)
+  const enemy = state.players[1 - pid];
+  const enemyBx = (enemy.x + 0.5) * cellW;
+  const enemyBy = (enemy.y + 0.5) * cellH;
+  if (Math.hypot(enemyBx - clickX, enemyBy - clickY) < 45) {
+    sfx.playOrder();
+    if (selected !== null) {
+      sendAction({ action: 'move', unitId: selected, x: enemy.x, y: enemy.y });
+      selected = null;
+    } else {
+      sendAction({ action: 'attack_core' });
+    }
+    draw();
+    return;
+  }
+
+  // 3. Check if clicked own unit (Generous 32px radius)
+  const hit = state.units.find(u => u.owner === pid && Math.hypot((u.x + 0.5) * cellW - clickX, (u.y + 0.5) * cellH - clickY) < 32);
 
   if (hit) {
+    sfx.playOrder();
     selected = hit.id;
     draw();
     return;
   }
 
-  // If already selected, dispatch move command
+  // 4. Clicked an empty tile
   if (selected !== null) {
+    sfx.playOrder();
     sendAction({ action: 'move', unitId: selected, x: gx, y: gy });
     selected = null;
     draw();
+  } else {
+    // If no unit selected, dispatch all units to clicked tile
+    const myUnits = state.units.filter(u => u.owner === pid);
+    if (myUnits.length > 0) {
+      sfx.playOrder();
+      sendAction({ action: 'move_all', x: gx, y: gy });
+      draw();
+    }
   }
 });
 
 // Animation Frame Loop for Smooth Effects
 function animationLoop() {
-  if (attackBeams.length > 0 || particles.length > 0) {
+  if (attackBeams.length > 0 || particles.length > 0 || floatingTexts.length > 0 || clickPings.length > 0) {
     draw();
   }
   requestAnimationFrame(animationLoop);
