@@ -77,4 +77,4 @@ Because this game uses live WebSockets, deploy it to any free Node.js hosting se
 - **Project Title**: `GRIDFRONT: Signal Wars`
 - **Project Cover Image**: `cover_image.png` (1500x1000, 3:2 ratio)
 - **Project Description (under 500 characters)**:
-  > GRIDFRONT: Signal Wars is a real-time multiplayer RTS built with Node.js and WebSockets. Commanders deploy Pulse Scouts and Siege Tanks, capture signal relays for energy income, and coordinate base assaults to destroy the enemy core. Features 1v1 PvP matchmaking, custom room codes, zero-asset Web Audio SFX, particle combat effects, and an autonomous AI practice mode. Guided by ChatGPT, balancing real-time server authority, responsive unit controls, and edge-case network recovery was a thrilling challenge.
+  > GRIDFRONT: Signal Wars is a real-time multiplayer RTS built with Node.js & WebSockets. Commanders deploy Scouts & Tanks, capture relays for energy, and breach the enemy core. Features 1v1 PvP matchmaking, custom room codes, Web Audio SFX, particle combat, and an autonomous AI practice mode. Guiding ChatGPT to balance server authority, responsive controls, and edge cases made this an exciting challenge.
