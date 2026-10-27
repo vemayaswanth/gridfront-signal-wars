@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GRIDFRONT: Signal Wars — Real-Time Multiplayer Strategy</title>
+<meta name="description" content="A real-time multiplayer tactics game built for the Handshake AI Skills Studio × OpenAI Challenge. Capture relays, control the front, destroy the enemy core.">
+<style>
+:root {
+  --bg: #070d18;
+  --panel: #0f1829;
+  --line: #22354e;
+  --cyan: #52d7ff;
+  --cyan-glow: rgba(82, 215, 255, 0.35);
+  --red: #ff5277;
+  --red-glow: rgba(255, 82, 119, 0.35);
+  --gold: #f5b041;
+  --muted: #8ba2c2;
+  --text: #eef5ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: radial-gradient(ellipse at 50% -10%, #172d4c 0%, #070d18 60%);
+  color: var(--text);
+  font: 14px/1.5 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+button, input { font: inherit; }
+button {
+  cursor: pointer;
+  border: 1px solid #334e70;
+  border-radius: 9px;
+  padding: 10px 14px;
+  color: var(--text);
+  background: #142236;
+  transition: all 0.18s ease;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+button:hover:not(:disabled) {
+  border-color: var(--cyan);
+  background: #1a2d48;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(82, 215, 255, 0.15);
+}
+button:active:not(:disabled) { transform: translateY(0); }
+button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.primary {
+  background: linear-gradient(135deg, #44cdfa, #4a7eff);
+  color: #04101e;
+  border: 0;
+  font-weight: 800;
+  box-shadow: 0 4px 18px var(--cyan-glow);
+}
+.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #64d6fb, #5b8cff);
+  box-shadow: 0 6px 22px rgba(82, 215, 255, 0.4);
+}
+.secondary { background: #15243b; border-color: #2e4766; color: #bed2ea; }
+.full { width: 100%; }
+.hidden { display: none !important; }
+
+/* Header */
+header {
+  height: 68px;
+  border-bottom: 1px solid #1a2a40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(16px, 4vw, 48px);
+  background: rgba(8, 14, 25, 0.85);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #52d7ff, #4770ff);
+  color: #04101e;
+  font-weight: 900;
+  font-size: 21px;
+  box-shadow: 0 0 20px rgba(82, 215, 255, 0.35);
+}
+.brand-text strong { letter-spacing: 0.16em; font-size: 14px; font-weight: 800; }
+.brand-text small { display: block; color: var(--muted); letter-spacing: 0.12em; font-size: 9px; font-weight: 600; margin-top: 1px; }
+
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.audio-btn { padding: 6px 12px; font-size: 12px; border-radius: 7px; background: #101c2e; border: 1px solid #233752; color: #a6c0e0; }
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+  background: #0d1726;
+  border: 1px solid #1d2e46;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #e0973a; }
+.dot.live { background: #41e89e; box-shadow: 0 0 10px #41e89e; }
+
+/* Main Layout */
+main {
+  max-width: 1420px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px clamp(12px, 3vw, 36px) 36px;
+  flex: 1;
+}
+.banner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+.eyebrow {
+  color: var(--cyan);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.banner h1 {
+  font-size: clamp(24px, 3.5vw, 38px);
+  font-weight: 850;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 4px 0 6px;
+}
+.banner p { color: var(--muted); font-size: 13px; max-width: 650px; }
+.match-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f192b;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.match-badge strong { color: var(--text); }
+
+/* Layout Grid */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 16px;
+}
+
+/* Battlefield Area */
+.arena-card {
+  border: 1px solid #233752;
+  background: #0b1422;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+.arena-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #1a2a40;
+  background: #0e1828;
+  font-size: 11px;
+}
+.arena-header strong { letter-spacing: 0.14em; color: #cfddec; }
+.arena-header span { color: var(--muted); }
+
+.canvas-container {
+  position: relative;
+  background: #08111e;
+  width: 100%;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3/2;
+  cursor: crosshair;
+}
+
+.bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-top: 1px solid #1a2a40;
+  background: #0c1524;
+  color: var(--muted);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.key-badge {
+  background: #17263b;
+  border: 1px solid #2d4564;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #d7e6f8;
+  font-weight: 600;
+}
+
+/* Modals & Overlays */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 13, 24, 0.82);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+  z-index: 20;
+}
+.modal {
+  width: min(440px, 100%);
+  border: 1px solid #2d4566;
+  background: #101c2e;
+  border-radius: 18px;
+  padding: 26px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+  animation: modalIn 0.22s ease-out;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal h2 { font-size: 24px; font-weight: 850; letter-spacing: -0.03em; margin: 6px 0 10px; }
+.modal p { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 18px; }
+.modal input {
+  width: 100%;
+  background: #091220;
+  color: #fff;
+  border: 1px solid #283e5c;
+  border-radius: 9px;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.modal input:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(82, 215, 255, 0.2); }
+.modal-btn-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+
+/* Sidebar Panels */
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.panel-card {
+  border: 1px solid #20334c;
+  background: linear-gradient(160deg, #101a2b, #0b1321);
+  border-radius: 14px;
+  padding: 16px;
+}
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #9cb1cb;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-box {
+  background: #091322;
+  border: 1px solid #1f334d;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.stat-box small { display: block; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.stat-box strong { display: block; font-size: 22px; font-weight: 850; margin-top: 3px; color: #fff; }
+
+.hp-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 12px;
+  margin-bottom: 5px;
+}
+.progress-track {
+  height: 6px;
+  background: #1c2a3d;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--cyan);
+  transition: width 0.25s ease;
+  box-shadow: 0 0 8px rgba(82, 215, 255, 0.5);
+}
+.enemy-fill {
+  background: var(--red) !important;
+  box-shadow: 0 0 8px rgba(255, 82, 119, 0.5);
+}
+
+/* Unit Production */
+.unit-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #0e192a;
+  border-color: #263c58;
+}
+.unit-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #091322;
+  border: 1px solid #2b4566;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+.unit-info { flex: 1; }
+.unit-info b { display: block; font-size: 13px; color: #eaf2ff; }
+.unit-info small { color: var(--muted); font-size: 10px; }
+.unit-cost { font-weight: 800; font-size: 12px; color: var(--gold); }
+
+/* Intel Feed */
+.feed-list { display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto; }
+.feed-item {
+  font-size: 11px;
+  color: #9cb1ce;
+  border-left: 2px solid #2e4564;
+  padding-left: 10px;
+  line-height: 1.4;
+}
+.feed-item:first-child { border-color: var(--cyan); color: #eef6ff; font-weight: 600; }
+
+/* Match Summary Stats Modal */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 20px; }
+.summary-stat { background: #0a1322; border: 1px solid #1e334d; border-radius: 8px; padding: 10px; }
+.summary-stat span { display: block; font-size: 10px; color: var(--muted); }
+.summary-stat b { font-size: 16px; color: #fff; margin-top: 2px; display: block; }
+
+/* Responsive */
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: grid; grid-template-columns: 1fr 1fr; }
+  .sidebar .feedcard { grid-column: 1 / -1; }
+  .banner { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 580px) {
+  .sidebar { grid-template-columns: 1fr; }
+  header { height: 60px; padding: 0 16px; }
+  .hide-xs { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">G</div>
+    <div class="brand-text">
+      <strong>GRIDFRONT</strong>
+      <small>SIGNAL WARS // TOURNAMENT EDITION</small>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="audio-btn" id="audioToggle" title="Toggle sound effects">🔊 Sound: ON</button>
+    <button class="audio-btn hide-xs" id="howToPlayBtn" title="View tactical guide">❓ Rules</button>
+    <div class="status-pill">
+      <i id="statusDot" class="dot"></i>
+      <span id="connectionText">OFFLINE</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="banner">
+    <div>
+      <div class="eyebrow">Real-Time Multiplayer Tactics // Protocol 2.0</div>
+      <h1>Own the signal. <span style="color:var(--cyan)">Control the front.</span></h1>
+      <p>Deploy forces, capture signal relays for sustained energy generation, and breach the enemy core in synchronized real-time combat.</p>
+    </div>
+    <div class="match-badge">
+      <span>MATCH:</span>
+      <strong id="roomLabel">LOBBY</strong>
+      <button class="secondary hidden" id="copyLinkBtn" style="padding:4px 9px;font-size:10px;">📋 Copy Link</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Game Canvas Arena -->
+    <section class="arena-card">
+      <div class="arena-header">
+        <strong>GRID SECTOR 18x12 <span style="color:var(--cyan)">●</span></strong>
+        <span id="battleStatus">Awaiting commanders</span>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="game" width="900" height="600" aria-label="Gridfront interactive battlefield"></canvas>
+
+        <!-- Initial Matchmaking Modal -->
+        <div class="overlay" id="joinOverlay">
+          <div class="modal">
+            <div class="eyebrow">Tactical Uplink</div>
+            <h2>Establish Connection</h2>
+            <p>Select your commander callsign and pick your game mode to enter the warzone immediately.</p>
+            
+            <input id="nameInput" maxlength="18" placeholder="Commander Callsign" value="Commander">
+            
+            <div class="modal-btn-stack">
+              <button class="primary full" id="quickMatchBtn">⚡ QUICK MATCH (MULTIPLAYER)</button>
+              <button class="secondary full" id="soloAiBtn">🤖 PRACTICE VS AI COMMANDER</button>
+              <button class="secondary full" id="customRoomBtn">🔗 CREATE / JOIN ROOM CODE</button>
+            </div>
+            
+            <p style="font-size:11px;color:#7e94b2;margin:14px 0 0;text-align:center;">
+              Handshake AI Skills Studio × OpenAI Challenge Build
+            </p>
+          </div>
+        </div>
+
+        <!-- Custom Room Modal -->
+        <div class="overlay hidden" id="customOverlay">
+          <div class="modal">
+            <div class="eyebrow">Direct Room Link</div>
+            <h2>Private Room Match</h2>
+            <p>Enter any room code to join or create a private arena for a friend or judge.</p>
+            <input id="roomCodeInput" maxlength="12" placeholder="e.g. ALPHA, BATTLE1" style="text-transform:uppercase;">
+            <div class="modal-btn-stack">
+              <button class="primary full" id="joinRoomBtn">ENTER PRIVATE ROOM ↗</button>
+              <button class="secondary full" id="cancelCustomBtn">BACK TO MODES</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- End Game Match Summary Modal -->
+        <div class="overlay hidden" id="endOverlay">
+          <div class="modal">
+            <div class="eyebrow" id="endStatusEyebrow">MISSION COMPLETE</div>
+            <h2 id="endTitle">Victory, Commander!</h2>
+            <p id="endText">The signal network has been secured.</p>
+            
+            <div class="summary-grid" id="summaryGrid">
+              <div class="summary-stat"><span>YOUR UNITS BUILT</span><b id="statBuilt">0</b></div>
+              <div class="summary-stat"><span>ENEMIES DESTROYED</span><b id="statKills">0</b></div>
+              <div class="summary-stat"><span>RELAYS CAPTURED</span><b id="statRelays">0</b></div>
+              <div class="summary-stat"><span>DAMAGE DEALT</span><b id="statDamage">0</b></div>
+            </div>
+
+            <div class="modal-btn-stack">
+              <button class="primary full" onclick="location.reload()">PLAY ANOTHER MATCH ↗</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- How To Play Modal -->
+        <div class="overlay hidden" id="howToOverlay">
+          <div class="modal" style="width:min(480px,100%);">
+            <div class="eyebrow">TACTICAL INSTRUCTION MANUAL</div>
+            <h2>How to Play Gridfront</h2>
+            <p style="margin-bottom:12px;">Lead your forces to capture energy nodes and overpower the opposing core.</p>
+            
+            <div style="font-size:12px;color:#c2d3ea;line-height:1.6;display:flex;flex-direction:column;gap:10px;">
+              <div>⚡ <b>Energy & Relays:</b> Relays in the center generate +6 energy every cycle when your units stand nearby to capture them.</div>
+              <div>➤ <b>Pulse Scout (35 Energy):</b> High speed and fast capture capability; great for rapid expansion and harassment.</div>
+              <div>⬡ <b>Siege Tank (70 Energy):</b> Armored behemoth with 130 HP and heavy cannon damage; pushes enemy defenses.</div>
+              <div>🎯 <b>Unit Controls:</b> Click your unit to select it, then click any battlefield tile to issue movement orders. Units auto-fire at enemies in range!</div>
+              <div>💥 <b>Win Condition:</b> March your army into the enemy core sector to destroy their base integrity (300 HP).</div>
+            </div>
+
+            <div style="margin-top:18px;">
+              <button class="primary full" id="closeHowToBtn">GOT IT, BACK TO BATTLE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <span>LEFT-CLICK UNIT TO SELECT · CLICK TILE TO DISPATCH</span>
+        <span><span class="key-badge">SCOUT</span> FAST EXPANSION · <span class="key-badge">TANK</span> SIEGE CORE</span>
+      </div>
+    </section>
+
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
+      <!-- Player Command Panel -->
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>COMMAND SECTOR</span>
+          <span id="playerTag" style="color:var(--cyan);font-weight:900;">P1 COMMANDER</span>
+        </div>
+        
+        <div class="stat-grid">
+          <div class="stat-box">
+            <small>Energy Reserve</small>
+            <strong id="energy" style="color:var(--gold);">120</strong>
+          </div>
+          <div class="stat-box">
+            <small>Active Units</small>
+            <strong id="unitCount">0</strong>
+          </div>
+        </div>
+
+        <div class="hp-row">
+          <span>YOUR CORE INTEGRITY</span>
+          <b id="coreText" style="color:var(--cyan);">100%</b>
+        </div>
+        <div class="progress-track"><span id="coreBar" class="progress-fill"></span></div>
+
+        <div class="hp-row" style="margin-top:14px;">
+          <span id="enemyCoreLabel">ENEMY CORE INTEGRITY</span>
+          <b id="enemyCoreText" style="color:var(--red);">100%</b>
+        </div>
+        <div class="progress-track"><span id="enemyCoreBar" class="progress-fill enemy-fill"></span></div>
+      </div>
+
+      <!-- Unit Production Panel -->
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>FACTORY DEPLOYMENT</span>
+          <span id="productionState">STANDBY</span>
+        </div>
+
+        <button class="unit-btn" id="scoutBtn" disabled>
+          <span class="unit-icon">➤</span>
+          <span class="unit-info">
+            <b>Pulse Scout</b>
+            <small>Fast · Capture Relays</small>
+          </span>
+          <span class="unit-cost">⚡ 35</span>
+        </button>
+
+        <button class="unit-btn" id="tankBtn" disabled>
+          <span class="unit-icon">⬡</span>
+          <span class="unit-info">
+            <b>Siege Tank</b>
+            <small>Armored · High Damage</small>
+          </span>
+          <span class="unit-cost">⚡ 70</span>
+        </button>
+
+        <button class="secondary full" id="retreatBtn" style="margin-top:10px;" disabled>
+          ↶ Recall All Units to Base
+        </button>
+      </div>
+
+      <!-- Live Tactical Intelligence Feed -->
+      <div class="panel-card feedcard">
+        <div class="panel-title">
+          <span>TACTICAL RADAR</span>
+          <span>LIVE INTEL</span>
+        </div>
+        <div class="feed-list" id="feed">
+          <div class="feed-item">Connecting to quantum network...</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+// --- Web Audio SFX Engine (Zero Assets, Instant & Offline) ---
+class SoundController {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+  playLaser() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+      const t = this.ctx.currentTime;
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(650, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.12);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.13);
+    } catch(e){}
+  }
+  playDeploy() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+      const t = this.ctx.currentTime;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(440, t + 0.18);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.19);
+    } catch(e){}
+  }
+  playCapture() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const notes = [440, 554, 659];
+      const t = this.ctx.currentTime;
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+        gain.gain.setValueAtTime(0.1, t + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + idx * 0.08);
+        osc.stop(t + idx * 0.08 + 0.16);
+      });
+    } catch(e){}
+  }
+  playExplode() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+      const t = this.ctx.currentTime;
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.exponentialRampToValueAtTime(35, t + 0.25);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.26);
+    } catch(e){}
+  }
+  playVictory() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const chord = [392, 523.25, 659.25, 783.99];
+      const t = this.ctx.currentTime;
+      chord.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + i * 0.1);
+        gain.gain.setValueAtTime(0.18, t + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.1);
+        osc.stop(t + i * 0.1 + 0.52);
+      });
+    } catch(e){}
+  }
+}
+const sfx = new SoundController();
+
+// --- Game Client Variables ---
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+let ws = null, state = null, pid = null, selected = null;
+let cellW = 50, cellH = 50;
+const W = 18, H = 12;
+const COLORS = ['#52d7ff', '#ff5277'];
+
+// Particle & visual effect system
+let attackBeams = []; // { fromX, fromY, toX, toY, color, life, maxLife }
+let particles = [];   // { x, y, vx, vy, color, life, maxLife, size }
+
+function addExplosion(x, y, color) {
+  for (let i = 0; i < 16; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.5 + Math.random() * 2.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color,
+      life: 20 + Math.random() * 15,
+      maxLife: 35,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// --- Audio Button Toggle ---
+$('audioToggle').onclick = () => {
+  sfx.init();
+  sfx.enabled = !sfx.enabled;
+  $('audioToggle').textContent = sfx.enabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+};
+
+// --- Tactical Rules Modal ---
+$('howToPlayBtn').onclick = () => $('howToOverlay').classList.remove('hidden');
+$('closeHowToBtn').onclick = () => $('howToOverlay').classList.add('hidden');
+
+// --- WebSocket Connection ---
+function connect(mode = 'quick', roomCode = null) {
+  sfx.init();
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => {
+    $('connectionText').textContent = 'CONNECTED';
+    $('statusDot').classList.add('live');
+    const name = $('nameInput').value.trim() || 'Commander';
+    ws.send(JSON.stringify({ type: 'join', name, mode, roomCode }));
+  };
+
+  ws.onmessage = e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'waiting') {
+      $('battleStatus').textContent = msg.message;
+      $('quickMatchBtn').textContent = 'SEARCHING FOR SATELLITE UPLINK...';
+    }
+
+    if (msg.type === 'joined') {
+      pid = msg.playerId;
+      $('joinOverlay').classList.add('hidden');
+      $('customOverlay').classList.add('hidden');
+      $('roomLabel').textContent = msg.roomId;
+      $('playerTag').textContent = `P${pid + 1} // ${$('nameInput').value.trim() || 'COMMANDER'}`;
+      $('battleStatus').textContent = msg.isAi ? 'Simulated Combat vs AI' : 'Live Match Active';
+
+      // Setup room copy link
+      $('copyLinkBtn').classList.remove('hidden');
+      $('copyLinkBtn').onclick = () => {
+        const link = `${location.origin}${location.pathname}?room=${msg.roomId}`;
+        navigator.clipboard.writeText(link).then(() => {
+          $('copyLinkBtn').textContent = '✅ Copied!';
+          setTimeout(() => $('copyLinkBtn').textContent = '📋 Copy Link', 2000);
+        });
+      };
+    }
+
+    if (msg.type === 'state') {
+      processState(msg.state);
+    }
+
+    if (msg.type === 'notice') {
+      $('battleStatus').textContent = msg.message;
+    }
+
+    if (msg.type === 'opponent_left') {
+      $('battleStatus').textContent = 'Opponent disconnected. Victory!';
+      sfx.playVictory();
+      if (msg.state) processState(msg.state);
+    }
+  };
+
+  ws.onclose = () => {
+    $('connectionText').textContent = 'DISCONNECTED';
+    $('statusDot').classList.remove('live');
+  };
+}
+
+function sendAction(a) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'action', ...a }));
+  }
+}
+
+// Check URL query parameters for auto room join (e.g. ?room=ROOM123)
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const roomParam = params.get('room');
+  if (roomParam) {
+    $('roomCodeInput').value = roomParam;
+    $('quickMatchBtn').textContent = `JOIN ROOM: ${roomParam.toUpperCase()}`;
+    $('quickMatchBtn').onclick = () => connect('custom', roomParam.toUpperCase());
+  }
+});
+
+// UI Mode Buttons
+$('quickMatchBtn').onclick = () => connect('quick');
+$('soloAiBtn').onclick = () => connect('ai');
+$('customRoomBtn').onclick = () => {
+  $('joinOverlay').classList.add('hidden');
+  $('customOverlay').classList.remove('hidden');
+};
+$('cancelCustomBtn').onclick = () => {
+  $('customOverlay').classList.add('hidden');
+  $('joinOverlay').classList.remove('hidden');
+};
+$('joinRoomBtn').onclick = () => {
+  const code = $('roomCodeInput').value.trim().toUpperCase();
+  if (code) connect('custom', code);
+};
+
+// Controls
+$('scoutBtn').onclick = () => {
+  sfx.playDeploy();
+  sendAction({ action: 'build', unit: 'scout' });
+};
+$('tankBtn').onclick = () => {
+  sfx.playDeploy();
+  sendAction({ action: 'build', unit: 'tank' });
+};
+$('retreatBtn').onclick = () => sendAction({ action: 'retreat' });
+
+function processState(newState) {
+  // Check for events in tick
+  if (newState.events && newState.events.length > 0) {
+    const cw = canvas.width / W, ch = canvas.height / H;
+    newState.events.forEach(ev => {
+      if (ev.type === 'attack') {
+        attackBeams.push({
+          fromX: (ev.from.x + 0.5) * cw,
+          fromY: (ev.from.y + 0.5) * ch,
+          toX: (ev.to.x + 0.5) * cw,
+          toY: (ev.to.y + 0.5) * ch,
+          color: COLORS[ev.owner],
+          life: 8,
+          maxLife: 8
+        });
+        sfx.playLaser();
+      }
+      if (ev.type === 'destroy') {
+        addExplosion((ev.x + 0.5) * cw, (ev.y + 0.5) * ch, '#ff7070');
+        sfx.playExplode();
+      }
+      if (ev.type === 'capture') {
+        sfx.playCapture();
+      }
+    });
+  }
+
+  state = newState;
+  renderUI();
+  draw();
+}
+
+function renderUI() {
+  if (!state || pid === null) return;
+  const me = state.players[pid];
+  const enemy = state.players[1 - pid];
+
+  $('energy').textContent = Math.floor(me.energy);
+  $('unitCount').textContent = state.units.filter(u => u.owner === pid).length;
+
+  $('coreText').textContent = Math.round(me.core / 3) + '%';
+  $('coreBar').style.width = Math.max(0, me.core / 3) + '%';
+
+  $('enemyCoreLabel').textContent = `${enemy.name.toUpperCase()} CORE`;
+  $('enemyCoreText').textContent = Math.round(enemy.core / 3) + '%';
+  $('enemyCoreBar').style.width = Math.max(0, enemy.core / 3) + '%';
+
+  const matchEnded = state.winner !== null;
+  $('scoutBtn').disabled = me.energy < 35 || matchEnded;
+  $('tankBtn').disabled = me.energy < 70 || matchEnded;
+  $('retreatBtn').disabled = matchEnded || !state.units.some(u => u.owner === pid);
+
+  $('productionState').textContent = matchEnded ? 'ENDED' : 'ACTIVE';
+
+  $('feed').innerHTML = (state.feed || [])
+    .slice()
+    .reverse()
+    .map(x => `<div class="feed-item">${escapeHtml(x.text)}</div>`)
+    .join('');
+
+  if (matchEnded) {
+    $('endOverlay').classList.remove('hidden');
+    const isWin = state.winner === pid;
+    $('endTitle').textContent = isWin ? 'Victory, Commander!' : 'Defeat — Core Neutralized';
+    $('endTitle').style.color = isWin ? 'var(--cyan)' : 'var(--red)';
+    $('endText').textContent = isWin
+      ? 'Tactical superiority achieved. You have captured the sector.'
+      : 'Your defenses were overrun by enemy forces. Review combat stats below.';
+
+    if (state.stats) {
+      $('statBuilt').textContent = state.stats.unitsBuilt[pid] || 0;
+      $('statKills').textContent = state.stats.unitsKilled[pid] || 0;
+      $('statRelays').textContent = state.stats.relaysCaptured[pid] || 0;
+      $('statDamage').textContent = state.stats.damageDealt[pid] || 0;
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// --- Canvas Render Loop ---
+function draw() {
+  const cw = canvas.width / W;
+  const ch = canvas.height / H;
+  cellW = cw;
+  cellH = ch;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background Sci-Fi Grid
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  grad.addColorStop(0, '#091524');
+  grad.addColorStop(1, '#050c17');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      ctx.strokeStyle = (x + y) % 2 === 0 ? '#1b2c42' : '#142233';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x * cw, y * ch, cw, ch);
+      if ((x * 7 + y * 3) % 19 === 0) {
+        ctx.fillStyle = '#223850';
+        ctx.fillRect(x * cw + cw * 0.5 - 1, y * ch + ch * 0.5 - 1, 2, 2);
+      }
+    }
+  }
+
+  if (!state) {
+    ctx.fillStyle = '#6e85a3';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('SELECT A GAME MODE TO ENTER TACTICAL RADAR', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  // Signal Relays with Pulsing Waves
+  for (const n of state.nodes) {
+    const rx = (n.x + 0.5) * cw;
+    const ry = (n.y + 0.5) * ch;
+    const col = n.owner < 0 ? '#d2b56f' : COLORS[n.owner];
+
+    // Pulsing signal ring
+    const pulseRadius = Math.min(cw, ch) * (0.28 + 0.05 * Math.sin(state.tick * 0.2 + n.id));
+    ctx.beginPath();
+    ctx.arc(rx, ry, pulseRadius, 0, Math.PI * 2);
+    ctx.fillStyle = col + '18';
+    ctx.fill();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Central Relay Core
+    ctx.beginPath();
+    ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    ctx.fillStyle = '#b7c9dc';
+    ctx.font = 'bold 9px system-ui';
+    ctx.textAlign = 'center';
+    const label = n.owner < 0 ? `RELAY #${n.id + 1}` : `RELAY #${n.id + 1} [P${n.owner + 1}]`;
+    ctx.fillText(label, rx, ry + 24);
+  }
+
+  // Player Base Cores
+  state.players.forEach((p, i) => {
+    const bx = (p.x + 0.5) * cw;
+    const by = (p.y + 0.5) * ch;
+    const col = COLORS[i];
+
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = col + '15';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2.5;
+
+    // Hexagonal Core
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 24);
+    ctx.lineTo(bx + 22, by - 12);
+    ctx.lineTo(bx + 22, by + 12);
+    ctx.lineTo(bx, by + 24);
+    ctx.lineTo(bx - 22, by + 12);
+    ctx.lineTo(bx - 22, by - 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = col;
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(i === pid ? 'YOUR CORE' : `${p.name.toUpperCase()}`, bx, by + 40);
+  });
+
+  // Units
+  state.units.forEach(u => {
+    const ux = (u.x + 0.5) * cw;
+    const uy = (u.y + 0.5) * ch;
+    const col = COLORS[u.owner];
+
+    // Selected Ring
+    if (u.owner === pid && selected === u.id) {
+      ctx.beginPath();
+      ctx.arc(ux, uy, 20, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Trajectory dashed line
+    ctx.beginPath();
+    ctx.moveTo(ux, uy);
+    ctx.lineTo((u.tx + 0.5) * cw, (u.ty + 0.5) * ch);
+    ctx.strokeStyle = col + '45';
+    ctx.setLineDash([3, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Unit Body
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#091322';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+
+    if (u.type === 'tank') {
+      ctx.beginPath();
+      ctx.rect(ux - 10, uy - 10, 20, 20);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = col;
+      ctx.fillRect(ux - 5, uy - 5, 10, 10);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(ux, uy - 12);
+      ctx.lineTo(ux + 10, uy + 8);
+      ctx.lineTo(ux - 10, uy + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Health Bar
+    ctx.fillStyle = '#1c293d';
+    ctx.fillRect(ux - 14, uy - 18, 28, 4);
+    ctx.fillStyle = col;
+    ctx.fillRect(ux - 14, uy - 18, 28 * Math.max(0, u.hp / u.maxHp), 4);
+  });
+
+  // Render Combat Laser Beams
+  attackBeams = attackBeams.filter(b => {
+    ctx.save();
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = (b.life / b.maxLife) * 3;
+    ctx.shadowColor = b.color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(b.fromX, b.fromY);
+    ctx.lineTo(b.toX, b.toY);
+    ctx.stroke();
+    ctx.restore();
+    b.life--;
+    return b.life > 0;
+  });
+
+  // Render Particle Explosions
+  particles = particles.filter(p => {
+    ctx.save();
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    return p.life > 0;
+  });
+
+  // Sector HUD Stats Overlay
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#8fa6c5';
+  ctx.font = '11px system-ui';
+  const cycle = String(Math.floor(state.tick / 10)).padStart(3, '0');
+  const ownedNodes = state.nodes.filter(n => n.owner === pid).length;
+  ctx.fillText(`TACTICAL CYCLE: ${cycle}  |  RELAYS HELD: ${ownedNodes}/3`, 14, 20);
+}
+
+// Unit Selection & Movement Controls
+canvas.addEventListener('click', e => {
+  if (!state || pid === null) return;
+  const rect = canvas.getBoundingClientRect();
+  const clickX = ((e.clientX - rect.left) / rect.width) * canvas.width;
+  const clickY = ((e.clientY - rect.top) / rect.height) * canvas.height;
+  const gx = Math.floor(clickX / cellW);
+  const gy = Math.floor(clickY / cellH);
+
+  // Check if clicked own unit
+  const hit = state.units.find(u => u.owner === pid && Math.hypot((u.x + 0.5) * cellW - clickX, (u.y + 0.5) * cellH - clickY) < 22);
+
+  if (hit) {
+    selected = hit.id;
+    draw();
+    return;
+  }
+
+  // If already selected, dispatch move command
+  if (selected !== null) {
+    sendAction({ action: 'move', unitId: selected, x: gx, y: gy });
+    selected = null;
+    draw();
+  }
+});
+
+// Animation Frame Loop for Smooth Effects
+function animationLoop() {
+  if (attackBeams.length > 0 || particles.length > 0) {
+    draw();
+  }
+  requestAnimationFrame(animationLoop);
+}
+animationLoop();
+</script>
+</body>
+</html>
